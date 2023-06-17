@@ -46,8 +46,6 @@ public class ProductController {
 	@PostMapping("/categoryProducts")
 	public String showCategoryProducts(@RequestParam(value = "category_id", required = false) int categoryId,
 			Model model) {
-		//System.out.println("hiiiiiiiiiiiiiiiiiiiiiiiiiii");
-		//System.out.println("based on category method" + categoryId);
 
 		List<ProductStockPrice> products;
 		if (categoryId != 0) {
@@ -88,4 +86,50 @@ public class ProductController {
 		return "productDetails";
 	}
 
+	@RequestMapping(value="/sortProducts", method = RequestMethod.POST)
+	public String sortProducts(@RequestParam("sortOrder") String sortOrder, Model model) {
+		// Get the product list from the data source
+		List<ProductStockPrice> productList = pdaoimp.getAllProducts();
+		System.out.println(productList.toString()+"yeahhhhhhh");
+		// Sort the products based on the selected sorting option
+		if (sortOrder.equals("lowToHigh") || sortOrder.equals("highToLow")) {
+			productList = pdaoimp.sortProductsByPrice(productList, sortOrder);
+		}
+		
+		// Add the sorted product list to the model
+		model.addAttribute("productList", productList);
+		
+		// Return the view
+		return "productCatalog";
+	}
+	
+	@RequestMapping(value="/filterProducts", method = RequestMethod.POST)
+	public String getFilteredProducts(@RequestParam("priceRange") String priceRange, Model model) {
+		double minPrice;
+		double maxPrice;
+		
+		// Parse the selected price range
+		if (priceRange.equals("0-500")) {
+			minPrice = 0.0;
+			maxPrice = 500.0;
+		} else if (priceRange.equals("500-1000")) {
+			minPrice = 500.0;
+			maxPrice = 1000.0;
+		} else if(priceRange.equals("1000-5000")){
+			minPrice = 1000.0;
+			maxPrice = 5000.0;
+		}
+		else {
+			// Default range or invalid option selected
+			List<ProductStockPrice> products = pdaoimp.getAllProducts();
+			System.out.println(products.toString()+"byeeeeeee");
+			model.addAttribute("products", products);
+			return "productCatalog";
+		}
+		
+		// Call the filterProductsByPriceRange() method from the DAO
+		List<ProductStockPrice> products =  pdaoimp.filterProductsByPriceRange(minPrice, maxPrice);
+		model.addAttribute("products", products);
+		return "productCatalog";
+	}
 }
