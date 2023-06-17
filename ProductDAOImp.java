@@ -1,5 +1,6 @@
 package eStoreProduct.DAO;
 
+import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -47,16 +48,17 @@ public class ProductDAOImp implements ProductDAO {
                 p.getProd_gstc_id(), p.getProd_brand(), p.getImage_url(), p.getProd_desc(), p.getReorderLevel()) > 0;
     }
 
-    public List<ProductStockPrice> getProductsByCategory(Integer category_id) {
-    	
-    	System.out.println("in pdaoimp cid   "+category_id);
-    	List<ProductStockPrice> p=jdbcTemplate.query(get_products_by_catg, new ProductRowMapper(prodStockDAO), category_id);
-    	for(ProductStockPrice ps:p)
-    	{
-    		System.out.println("for loop      "+ps);
-    	}
-    	return p;
-    }
+	public List<ProductStockPrice> getProductsByCategory(Integer category_id) {
+	    	
+	    	System.out.println("in pdaoimp cid   "+category_id);
+	    	List<ProductStockPrice> p=jdbcTemplate.query(get_products_by_catg, new ProductRowMapper(prodStockDAO), category_id);
+	    	for(ProductStockPrice ps:p)
+	    	{
+	    		System.out.println("for loop      "+ps);
+	    	}
+	    	return p;
+	    }
+
 
     public List<ProductStockPrice> getAllProducts() {
         return jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
@@ -75,6 +77,29 @@ public class ProductDAOImp implements ProductDAO {
     public List<String> getAllProductCategories() {
         // TODO Auto-generated method stub
         return null;
+    }
+    @Override
+    public List<ProductStockPrice> filterProductsByPriceRange(double minPrice, double maxPrice) {
+        List<ProductStockPrice> filteredProducts = jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
+        for (ProductStockPrice product : filteredProducts) {
+            if (product.getPrice() >= minPrice && product.getPrice() <= maxPrice) {
+                filteredProducts.add(product);
+            }
+        }
+        return filteredProducts;
+    }
+    
+    @Override
+    public List<ProductStockPrice> sortProductsByPrice(List<ProductStockPrice> productList, String sortOrder) {
+        List<ProductStockPrice> sortedList = jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
+
+        if (sortOrder.equals("lowToHigh")) {
+            Collections.sort(sortedList);
+        } else if (sortOrder.equals("highToLow")) {
+            Collections.sort(sortedList, Collections.reverseOrder());
+        }
+
+        return sortedList;
     }
 
 }
