@@ -1,44 +1,105 @@
 package eStoreProduct.DAO;
 
+import java.util.Collections;
 import java.util.List;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import eStoreProduct.model.ProdStock;
-import eStoreProduct.model.ProductStockRowMapper;
+import eStoreProduct.model.Category;
+import eStoreProduct.model.Product;
+import eStoreProduct.model.ProductRowMapper;
+import eStoreProduct.utility.ProductStockPrice;
+
 @Component
-public class ProdStockDAOImp implements ProdStockDAO {
-	private static final String PD_STK_QUERY = "SELECT * FROM slam_productstock";
-	private static final String SELECT_PRD_STK_QUERY = "SELECT * FROM slam_productstock WHERE prod_id = ?";
-	private static final String PD_PRICE_QUERY = "SELECT prod_price FROM slam_productstock WHERE prod_id = ?";
-	private static final String PD_MRP_QUERY = "SELECT prod_price FROM slam_productstock WHERE prod_id = ?";
+public class ProductDAOImp implements ProductDAO {
 
-	private JdbcTemplate jdbcTemplate;
+    @PersistenceContext
+    private EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
+    private final String SQL_INSERT_PRODUCT = "insert into slam_products(prod_id, prod_title, prod_prct_id, prod_gstc_id, prod_brand, image_url, prod_desc, reorderlevel)  values(?, ?, ?, ?, ?, ?, ?, ?)";
+    private final String SQL_GET_TOP_PRODID = "select prod_id from slam_products order by prod_id desc limit 1";
+    private String get_products_by_catg = "select p.prod_id, p.prod_title, p.prod_brand, p.image_url, p.prod_desc, ps.prod_price FROM slam_Products p, slam_productstock ps where p.prod_id = ps.prod_id and p.prod_prct_id = ?";
+    private String products_query = "SELECT p.prod_id, p.prod_title, p.prod_brand, p.image_url, p.prod_desc, ps.prod_price FROM slam_Products p, slam_productstock ps where p.prod_id = ps.prod_id";
+    private String prdt_catg = "SELECT * FROM slam_ProductCategories";
+    private String get_prd = "SELECT * FROM slam_Products WHERE prod_id = ?";
+    private ProdStockDAO prodStockDAO;
 
-	public ProdStockDAOImp(DataSource dataSource) {
-		jdbcTemplate = new JdbcTemplate(dataSource);
-	}
+    @Autowired
+    public ProductDAOImp(DataSource dataSource, ProdStockDAO prodStockDAO) {
+        jdbcTemplate = new JdbcTemplate(dataSource);
+        this.prodStockDAO = prodStockDAO;
+    }
 
-	@Override
-	public List<ProdStock> getAllProdStocks() {
-		return jdbcTemplate.query(PD_STK_QUERY, new ProductStockRowMapper());
-	}
+    @Override
+    public boolean createProduct(Product p) {
+        int p_id = jdbcTemplate.queryForObject(SQL_GET_TOP_PRODID, int.class);
+        p_id = p_id + 1;
+        System.out.println(p_id + "product_id\n");
+        System.out.println(p.getProd_title() + " " + p.getProd_gstc_id() + " " + p.getProd_brand() + " "
+                + p.getImage_url() + " " + p.getProd_desc() + " " + p.getReorderLevel());
 
-	@Override
-	public ProdStock getProdStockById(int prodId) {
-		return jdbcTemplate.queryForObject(SELECT_PRD_STK_QUERY, new ProductStockRowMapper(), prodId);
-	}
+        return jdbcTemplate.update(SQL_INSERT_PRODUCT, p_id, p.getProd_title(), p.getProd_prct_id(),
+                p.getProd_gstc_id(), p.getProd_brand(), p.getImage_url(), p.getProd_desc(), p.getReorderLevel()) > 0;
+    }
 
-	@Override
-	public double getProdPriceById(int prodId) {
-		return jdbcTemplate.queryForObject(PD_PRICE_QUERY, Double.class, prodId);
-	}
+	public List<ProductStockPrice> getProductsByCategory(Integer category_id) {
+	    	
+	    	System.out.println("in pdaoimp cid   "+category_id);
+	    	List<ProductStockPrice> p=jdbcTemplate.query(get_products_by_catg, new ProductRowMapper(prodStockDAO), category_id);
+	    	for(ProductStockPrice ps:p)
+	    	{
+	    		System.out.println("for loop      "+ps);
+	    	}
+	    	return p;
+	    }
 
-	@Override
-	public double getProdMrpById(int prodId) {
-		return jdbcTemplate.queryForObject(PD_MRP_QUERY, Double.class, prodId);
-	}
+
+    public List<ProductStockPrice> getAllProducts() {
+        return jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
+    }
+
+    public List<Category> getAllCategories() {
+        return jdbcTemplate.query(prdt_catg, new CategoryRowMapper());
+    }
+
+    public ProductStockPrice getProductById(Integer productId) {
+        List<ProductStockPrice> products = jdbcTemplate.query(get_prd, new ProductRowMapper(prodStockDAO), productId);
+        return products.isEmpty() ? null : products.get(0);
+    }
+
+    @Override
+    public List<String> getAllProductCategories() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+    @Override
+    public List<ProductStockPrice> filterProductsByPriceRange(double minPrice, double maxPrice) {
+        List<ProductStockPrice> filteredProducts = jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
+        for (ProductStockPrice product : filteredProducts) {
+            if (product.getPrice() >= minPrice && product.getPrice() <= maxPrice) {
+                filteredProducts.add(product);
+            }
+        }
+        return filteredProducts;
+    }
+    
+    @Override
+    public List<ProductStockPrice> sortProductsByPrice(List<ProductStockPrice> productList, String sortOrder) {
+        List<ProductStockPrice> sortedList = jdbcTemplate.query(products_query, new ProductRowMapper(prodStockDAO));
+
+        if (sortOrder.equals("lowToHigh")) {
+            Collections.sort(sortedList);
+        } else if (sortOrder.equals("highToLow")) {
+            Collections.sort(sortedList, Collections.reverseOrder());
+        }
+
+        return sortedList;
+    }
+
 }
